@@ -19,7 +19,8 @@ package com.kaytat.simpleprotocolplayer;
 
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.net.Socket;
+import android.net.LocalSocket;
+import android.net.LocalSocketAddress;
 
 import android.util.Log;
 
@@ -37,6 +38,7 @@ class NetworkReadThread extends ThreadStoppable {
         { 20, 6 },
         { 60, 2 }
     };
+    private static final String LOCAL_ABSTRACT_NAME = "spp";
 
     WorkerThreadPair syncObject;
     String ipAddr;
@@ -128,15 +130,15 @@ class NetworkReadThread extends ThreadStoppable {
     }
 
     public boolean runImpl() {
-        Socket socket = null;
+        LocalSocket socket = null;
         boolean connectionMade = false;
 
         try {
             // Create the TCP socket and setup some parameters
-            socket = new Socket(ipAddr, port);
+            socket = new LocalSocket();
+            socket.connect(new LocalSocketAddress(LOCAL_ABSTRACT_NAME));
             DataInputStream is = new DataInputStream(socket.getInputStream());
             socket.setSoTimeout(SOCKET_TIMEOUT);
-            socket.setTcpNoDelay(true);
 
             Log.i(TAG, "running");
 

@@ -51,12 +51,15 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+
 /**
  * Main activity: shows media player buttons. This activity shows the media player buttons and
  * lets the user click them. No media handling is done here -- everything is done by passing
  * Intents to our {@link MusicService}.
  * */
-public class MainActivity extends Activity implements OnClickListener {
+public class MainActivity extends AppCompatActivity implements OnClickListener {
     private static final String TAG = "MainActivity";
 
     AutoCompleteTextView mIPAddrText;
@@ -400,7 +403,8 @@ public class MainActivity extends Activity implements OnClickListener {
             hideKb();
 
             // Get the IP address and port and put it in the intent
-            Intent i = new Intent(MusicService.ACTION_PLAY);
+			Intent i = new Intent(this, MusicService.class);
+			i.setAction(MusicService.ACTION_PLAY);
             String ipAddr = mIPAddrText.getText().toString();
             String portStr = mAudioPortText.getText().toString();
             if (ipAddr.equals("")) {
@@ -470,11 +474,15 @@ public class MainActivity extends Activity implements OnClickListener {
             // Extract the retry state
             // Save current settings
             savePrefs();
-            startService(i);
+            ContextCompat.startForegroundService(this, i);
         }
         else if (target == mStopButton) {
             hideKb();
-            startService(new Intent(MusicService.ACTION_STOP));
+
+			Intent i = new Intent(this, MusicService.class);
+			i.setAction(MusicService.ACTION_STOP);
+
+			ContextCompat.startForegroundService(this, i);
         }
     }
 

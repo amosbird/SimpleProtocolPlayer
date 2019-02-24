@@ -25,7 +25,9 @@ import android.widget.TextView;
 import java.io.InputStream;
 import java.io.IOException;
 
-public class NoticeActivity extends Activity
+import androidx.appcompat.app.AppCompatActivity;
+
+public class NoticeActivity extends AppCompatActivity
 {
     static final String TAG = "NoticeActivity";
 

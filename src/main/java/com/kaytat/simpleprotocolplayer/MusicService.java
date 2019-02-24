@@ -20,6 +20,8 @@ package com.kaytat.simpleprotocolplayer;
 import java.util.ArrayList;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
@@ -27,7 +29,11 @@ import android.content.Intent;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.WifiLock;
 import android.os.IBinder;
+import android.os.Build;
 import android.util.Log;
+
+import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 
 /**
  * Service that handles media playback. This is the Service through which we perform all the media
@@ -94,14 +100,38 @@ public class MusicService extends Service implements MusicFocusable {
     // notification area).
     final int NOTIFICATION_ID = 1;
 
+    final String NOTIFICATION_CHANNEL_ID = "MUSIC_SERVICE";
+
     Notification mNotification = null;
+
+    private void registerNotificationChannel()
+	{
+		NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+		{
+			NotificationChannel notificationChannel = new NotificationChannel(NOTIFICATION_CHANNEL_ID,
+					"Music Service", NotificationManager.IMPORTANCE_DEFAULT);	// TODO use string resource
+			notificationChannel.setShowBadge(false);
+			notificationChannel.setSound(null, null);
+			notificationManager.createNotificationChannel(notificationChannel);
+		}
+	}
+
+    public static void start(Context context, Intent i)
+	{
+        Intent intent = new Intent(context, MusicService.class);
+        intent.setAction(ACTION_PLAY);
+        intent.putExtra(DATA_IP_ADDRESS, i.getStringExtra(DATA_IP_ADDRESS));
+        ContextCompat.startForegroundService(context, intent);
+    }
 
     @Override
     public void onCreate() {
         Log.i(TAG, "Creating service");
 
         // Create the Wifi lock (this does not acquire the lock, this just creates it)
-        mWifiLock = ((WifiManager) getSystemService(Context.WIFI_SERVICE))
+        mWifiLock = ((WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE))
                 .createWifiLock(WifiManager.WIFI_MODE_FULL, "mylock");
 
         // create the Audio Focus Helper, if the Audio Focus feature is available (SDK 8 or above)
@@ -120,7 +150,11 @@ public class MusicService extends Service implements MusicFocusable {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent.getAction();
         if (action.equals(ACTION_PLAY)) {
-            processPlayRequest(intent);
+            if (mState == State.Playing) {
+                processStopRequest();
+            } else {
+                processPlayRequest(intent);
+            }
         }
         else if (action.equals(ACTION_STOP)) {
             processStopRequest();
@@ -134,7 +168,8 @@ public class MusicService extends Service implements MusicFocusable {
         if (mState == State.Stopped) {
             tryToGetAudioFocus();
             playStream(
-                    i.getStringExtra(DATA_IP_ADDRESS),
+                    "127.0.0.1",
+                    // i.getStringExtra(DATA_IP_ADDRESS),
                     i.getIntExtra(DATA_AUDIO_PORT, DEFAULT_AUDIO_PORT),
                     i.getIntExtra(DATA_SAMPLE_RATE, DEFAULT_SAMPLE_RATE),
                     i.getBooleanExtra(DATA_STEREO, DEFAULT_STEREO),
@@ -193,25 +228,26 @@ public class MusicService extends Service implements MusicFocusable {
      * Reconfigures AudioTrack according to audio focus settings and starts/restarts it.
      */
     void configVolume() {
-        if (mAudioFocus == AudioFocus.NoFocusNoDuck) {
-            // If we don't have audio focus and can't duck, we have to pause, even if mState
-            // is State.Playing. But we stay in the Playing state so that we know we have to resume
-            // playback once we get the focus back.
-            if (mState == State.Playing) {
-                processStopRequest();
-            }
+        // if (mAudioFocus == AudioFocus.NoFocusNoDuck) {
+        //     // If we don't have audio focus and can't duck, we have to pause, even if mState
+        //     // is State.Playing. But we stay in the Playing state so that we know we have to resume
+        //     // playback once we get the focus back.
+        //     if (mState == State.Playing) {
+        //         processStopRequest();
+        //     }
 
-            return;
-        }
+        //     return;
+        // }
 
         for (WorkerThreadPair it : workers) {
-            if (mAudioFocus == AudioFocus.NoFocusCanDuck) {
-                it.mTrack.setStereoVolume(DUCK_VOLUME, DUCK_VOLUME); // we'll be
-                                                                     // relatively
-                                                                     // quiet
-            } else {
-                it.mTrack.setStereoVolume(1.0f, 1.0f); // we can be loud
-            }
+            it.mTrack.setStereoVolume(1.0f, 1.0f); // we can be loud
+            // if (mAudioFocus == AudioFocus.NoFocusCanDuck) {
+            //     it.mTrack.setStereoVolume(DUCK_VOLUME, DUCK_VOLUME); // we'll be
+            //                                                          // relatively
+            //                                                          // quiet
+            // } else {
+            //     it.mTrack.setStereoVolume(1.0f, 1.0f); // we can be loud
+            // }
         }
     }
 
@@ -249,12 +285,17 @@ public class MusicService extends Service implements MusicFocusable {
         PendingIntent pi = PendingIntent.getActivity(getApplicationContext(), 0,
                 new Intent(getApplicationContext(), MainActivity.class),
                 PendingIntent.FLAG_UPDATE_CURRENT);
-        mNotification = new Notification();
-        mNotification.tickerText = text;
-        mNotification.icon = R.drawable.ic_stat_playing;
-        mNotification.flags |= Notification.FLAG_ONGOING_EVENT;
-        mNotification.setLatestEventInfo(getApplicationContext(), "SimpleProtocolPlayer",
-                text, pi);
+
+		registerNotificationChannel();
+
+		NotificationCompat.Builder builder = new NotificationCompat.Builder(getApplicationContext(), NOTIFICATION_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_stat_playing)
+            .setContentTitle("SimpleProtocolPlayer")
+            .setContentText(text)
+            .setContentIntent(pi);
+
+        mNotification = builder.build();
+
         startForeground(NOTIFICATION_ID, mNotification);
     }
 

@@ -23,6 +23,8 @@ import android.content.Intent;
 import android.view.KeyEvent;
 import android.util.Log;
 
+import androidx.core.content.ContextCompat;
+
 /**
  * Receives broadcasted intents. In particular, we are interested in the
  * android.media.AUDIO_BECOMING_NOISY and android.intent.action.MEDIA_BUTTON intents, which is
@@ -31,13 +33,14 @@ import android.util.Log;
  */
 public class MusicIntentReceiver extends BroadcastReceiver {
     static final String TAG = "MusicIntentReceiver";
+    public static final String ACTION_START = "com.kaytat.simpleprotocolplayer.action.START";
 
     @Override
     public void onReceive(Context context, Intent intent) {
         if (intent.getAction().equals(android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY)) {
             Log.i(TAG, "onReceive - headphones disconnected.  Stopping");
             // send an intent to our MusicService to telling it to pause the audio
-            context.startService(new Intent(MusicService.ACTION_STOP));
+			ContextCompat.startForegroundService(context, new Intent(context, MusicService.class).setAction(MusicService.ACTION_STOP));
 
         } else if (intent.getAction().equals(Intent.ACTION_MEDIA_BUTTON)) {
             KeyEvent keyEvent = (KeyEvent) intent.getExtras().get(Intent.EXTRA_KEY_EVENT);
@@ -47,9 +50,11 @@ public class MusicIntentReceiver extends BroadcastReceiver {
             switch (keyEvent.getKeyCode()) {
                 case KeyEvent.KEYCODE_MEDIA_STOP:
                     Log.i(TAG, "onReceive - media button stop");
-                    context.startService(new Intent(MusicService.ACTION_STOP));
+                    ContextCompat.startForegroundService(context, new Intent(context, MusicService.class).setAction(MusicService.ACTION_STOP));
                     break;
             }
+        } else if (intent.getAction().equals(ACTION_START)) {
+            MusicService.start(context, intent);
         }
     }
 }

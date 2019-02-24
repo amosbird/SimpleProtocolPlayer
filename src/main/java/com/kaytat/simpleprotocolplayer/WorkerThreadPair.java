@@ -22,6 +22,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.media.AudioAttributes;
 import android.os.Handler;
 import android.util.Log;
 import android.widget.Toast;
@@ -66,8 +67,21 @@ public class WorkerThreadPair {
         packet_size = calcPacketSize(sample_rate, stereo, minBuf, buffer_ms);
 
         // The agreement here is that mTrack will be shutdown by the helper
-        mTrack = new AudioTrack(AudioManager.STREAM_MUSIC, sample_rate, format,
-                AudioFormat.ENCODING_PCM_16BIT, minBuf, AudioTrack.MODE_STREAM);
+        mTrack = new AudioTrack.Builder()
+                         .setAudioAttributes(new AudioAttributes.Builder()
+                                 .setUsage(AudioAttributes.USAGE_MEDIA)
+                                 .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                 .build())
+                         .setAudioFormat(new AudioFormat.Builder()
+                                 .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                                 .setSampleRate(44100)
+                                 .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
+                                 .build())
+                         .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
+                         .setBufferSizeInBytes(4)
+                         .build();
+                // new AudioTrack(AudioManager.STREAM_MUSIC, sample_rate, format,
+                // AudioFormat.ENCODING_PCM_16BIT, minBuf, AudioTrack.MODE_STREAM);
 
         audioThread = new BufferToAudioTrackThread(this, "audio:"
                 + serverAddr + ":" + serverPort);
